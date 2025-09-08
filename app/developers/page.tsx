@@ -24,6 +24,13 @@ export default function DevelopersPage() {
         civic-tech groups, and developers.
       </p>
 
+      <h3>How to Join</h3>
+      <ul>
+        <li>Review the <a href="https://github.com/BharatAddress/governance/blob/main/charter.md">charter</a> and <a href="https://github.com/BharatAddress/governance/blob/main/decision-rules.md">decision rules</a>.</li>
+        <li>Sign the <a href="https://github.com/BharatAddress/governance/blob/main/DCO">Developer Certificate of Origin (DCO)</a> in your PRs.</li>
+        <li>Open an issue in the relevant repository to discuss features or integrations.</li>
+      </ul>
+
       <h2>API Quickstart</h2>
       <pre>
 uvicorn main:app --reload
@@ -37,4 +44,3 @@ uvicorn main:app --reload
     </section>
   );
 }
-
