@@ -1,0 +1,60 @@
+name: Build and Deploy Website + Docs
+
+on:
+  push:
+    branches: [ source ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout website (source branch)
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build Next.js static site
+        run: |
+          npm ci || npm install
+          npm run build:static
+
+      - name: Checkout docs-site repo
+        uses: actions/checkout@v4
+        with:
+          repository: BharatAddress/docs-site
+          path: docs-site
+
+      - name: Setup Python for MkDocs
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build MkDocs
+        working-directory: docs-site
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+          mkdocs build --strict
+
+      - name: Stage docs under /docs
+        run: |
+          rm -rf out/docs
+          mkdir -p out/docs
+          cp -r docs-site/site/* out/docs/
+
+      - name: Deploy to main (Pages)
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: main
+          publish_dir: ./out
+          force_orphan: false
+          keep_files: false
+
