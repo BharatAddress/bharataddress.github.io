@@ -3,9 +3,8 @@
 import { useState } from 'react';
 
 export default function ApiPage() {
-  const [baseUrl, setBaseUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-  );
+  const envApi = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+  const [baseUrl, setBaseUrl] = useState<string>(envApi);
   const [query, setQuery] = useState<string>('/collections/addresses/items?limit=5');
   const [resp, setResp] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -52,9 +51,15 @@ export default function ApiPage() {
             placeholder="/collections/addresses/items?limit=5"
           />
         </label>
-        <div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn" onClick={run} disabled={loading}>
             {loading ? 'Fetching…' : 'Fetch'}
+          </button>
+          <button className="btn outline" onClick={() => setBaseUrl(envApi)} title="Use configured live API base">
+            Use Live API
+          </button>
+          <button className="btn outline" onClick={() => setBaseUrl('http://localhost:8000')} title="Use local dev base">
+            Use Local
           </button>
         </div>
       </div>
@@ -93,4 +98,3 @@ data = r.json()`}
     </section>
   );
 }
-

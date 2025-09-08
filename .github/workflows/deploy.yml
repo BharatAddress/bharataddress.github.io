@@ -23,6 +23,7 @@ jobs:
       - name: Install and build Next.js static site
         run: |
           npm ci || npm install
+          npm run assets || npx pwa-asset-generator public/logo.svg public --favicon true --mstile true --manifest true --opaque false --background '#ffffff' --path /
           npm run build:static
 
       - name: Checkout docs-site repo
@@ -57,4 +58,3 @@ jobs:
           publish_dir: ./out
           force_orphan: false
           keep_files: false
-

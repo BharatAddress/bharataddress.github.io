@@ -6,14 +6,15 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 export default function PlaygroundPage() {
   const mapRef = useRef<MapLibreMap | null>(null);
   const mapEl = useRef<HTMLDivElement | null>(null);
-  const [baseUrl, setBaseUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-  );
+  const envApi = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+  const [baseUrl, setBaseUrl] = useState<string>(envApi);
   const [pin, setPin] = useState<string>('');
   const [city, setCity] = useState<string>('');
   const [limit, setLimit] = useState<number>(200);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useBbox, setUseBbox] = useState<boolean>(false);
+  const [cluster, setCluster] = useState<boolean>(true);
 
   useEffect(() => {
     let canceled = false;
@@ -44,22 +45,81 @@ export default function PlaygroundPage() {
       url.searchParams.set('limit', String(limit));
       if (pin) url.searchParams.set('pin', pin);
       if (city) url.searchParams.set('city', city);
+      if (useBbox && mapRef.current) {
+        const b = mapRef.current.getBounds();
+        const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+        url.searchParams.set('bbox', bbox);
+      }
       const r = await fetch(url.toString());
       const gj = await r.json();
       if (!r.ok) throw new Error(gj?.error || `HTTP ${r.status}`);
       const map = mapRef.current;
       if (!map) return;
       const srcId = 'addresses';
-      const layerId = 'addresses-layer';
+      const pointLayerId = 'addresses-points';
+      const clusterLayerId = 'addresses-clusters';
+      const clusterCountId = 'addresses-cluster-count';
 
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(srcId)) (map.getSource(srcId) as any).setData(gj);
-      else map.addSource(srcId, { type: 'geojson', data: gj } as any);
+      // Clean existing layers/sources
+      for (const id of [clusterCountId, clusterLayerId, pointLayerId]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource(srcId)) map.removeSource(srcId);
+
+      // Add source with optional clustering
+      const sourceOpts: any = { type: 'geojson', data: gj };
+      if (cluster) {
+        sourceOpts.cluster = true;
+        sourceOpts.clusterMaxZoom = 14;
+        sourceOpts.clusterRadius = 50;
+      }
+      map.addSource(srcId, sourceOpts);
+
+      if (cluster) {
+        map.addLayer({
+          id: clusterLayerId,
+          type: 'circle',
+          source: srcId,
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': [
+              'step',
+              ['get', 'point_count'],
+              '#99c6f3',
+              10,
+              '#66a6e8',
+              50,
+              '#2f7dd1',
+            ],
+            'circle-radius': [
+              'step',
+              ['get', 'point_count'],
+              12,
+              10,
+              16,
+              50,
+              22,
+            ],
+          },
+        } as any);
+        map.addLayer({
+          id: clusterCountId,
+          type: 'symbol',
+          source: srcId,
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': ['get', 'point_count_abbreviated'],
+            'text-size': 12,
+          },
+          paint: { 'text-color': '#fff' },
+        } as any);
+      }
 
       map.addLayer({
-        id: layerId,
+        id: pointLayerId,
         type: 'circle',
         source: srcId,
+        filter: cluster ? ['!', ['has', 'point_count']] : undefined,
         paint: {
           'circle-radius': 5,
           'circle-color': '#d61f69',
@@ -100,13 +160,16 @@ export default function PlaygroundPage() {
         <input type="number" min={1} max={10000} value={limit} onChange={(e) => setLimit(parseInt(e.target.value || '100', 10))} />
       </div>
 
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label><input type="checkbox" checked={useBbox} onChange={(e) => setUseBbox(e.target.checked)} /> Use map view as bbox</label>
+        <label><input type="checkbox" checked={cluster} onChange={(e) => setCluster(e.target.checked)} /> Cluster</label>
         <button className="btn" disabled={loading} onClick={load}>{loading ? 'Loading…' : 'Load on Map'}</button>
-        {error && <span style={{ color: 'crimson', marginLeft: 12 }}>Error: {error}</span>}
+        <button className="btn outline" onClick={() => setBaseUrl(envApi)}>Use Live API</button>
+        <button className="btn outline" onClick={() => setBaseUrl('http://localhost:8000')}>Use Local</button>
+        {error && <span style={{ color: 'crimson' }}>Error: {error}</span>}
       </div>
 
       <div ref={mapEl} style={{ height: 540, marginTop: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid #eee' }} />
     </section>
   );
 }
-
